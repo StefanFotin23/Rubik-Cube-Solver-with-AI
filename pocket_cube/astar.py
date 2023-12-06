@@ -27,7 +27,6 @@ def heuristic(cube: Cube, state: np.ndarray) -> int:
 
     return total_distance
 
-
 class Node:
     def __init__(self, state: np.ndarray, g_cost: int = 0, h_cost: int = 0, parent=None, action=None):
         self.state = state
