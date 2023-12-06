@@ -4,9 +4,29 @@ from .cube import Cube
 from .constants import MOVES
 from typing import List, Tuple
 
-# Define a heuristic function (for simplicity, we use the number of misplaced stickers)
+#return np.sum(state != cube.goal_state)
+
+# Define a heuristic function
 def heuristic(cube: Cube, state: np.ndarray) -> int:
-    return np.sum(state != cube.goal_state)
+    goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
+    state = state.reshape((6, 4))
+
+    total_distance = 0
+
+    for face in range(6):
+        for sticker in range(4):
+            current_position = np.where(state == goal_state[face, sticker])
+            goal_position = np.where(goal_state == goal_state[face, sticker])
+
+            # Extract indices from tuples
+            current_position = np.array(current_position).T[0]
+            goal_position = np.array(goal_position).T[0]
+
+            distance = np.sum(np.abs(current_position - goal_position))
+            total_distance += distance
+
+    return total_distance
+
 
 class Node:
     def __init__(self, state: np.ndarray, g_cost: int = 0, h_cost: int = 0, parent=None, action=None):
