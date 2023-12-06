@@ -19,7 +19,7 @@ class Node:
     def __lt__(self, other):
         return (self.g_cost + self.h_cost) < (other.g_cost + other.h_cost)
 
-def astar(cube: Cube, max_iterations: int = 10000) -> Tuple[List[int], int]:
+def astar(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
     start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=heuristic(cube, cube.clone_state()))
     frontier = queue.PriorityQueue()
     frontier.put(start_node)
