@@ -1,7 +1,8 @@
-from collections import deque
-from typing import List, Tuple
+import queue
 import numpy as np
-from .cube import Cube, MOVES  # Adjust the import statement based on your project structure
+from .cube import Cube
+from .constants import MOVES
+from typing import List, Tuple
 
 def heuristic(cube: Cube, state: np.ndarray) -> int:
     goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
@@ -31,75 +32,75 @@ class Node:
         self.parent = parent
         self.action = action
 
-def bidirectional_bfs(cube: Cube) -> Tuple[List[int], int]:
+    def __lt__(self, other):
+        return (self.g_cost + self.h_cost) < (other.g_cost + other.h_cost)
+    
+def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
     start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=heuristic(cube, cube.clone_state()))
-    end_node = Node(state=cube.goal_state, g_cost=0, h_cost=0)
+    goal_node = Node(state=cube.goal_state, g_cost=0, h_cost=heuristic(cube, cube.goal_state))
 
-    start_queue = deque([start_node])
-    end_queue = deque([end_node])
+    start_frontier = queue.Queue()
+    goal_frontier = queue.Queue()
+    start_frontier.put(start_node)
+    goal_frontier.put(goal_node)
 
     start_explored = set()
-    end_explored = set()
+    goal_explored = set()
 
-    while start_queue and end_queue:
-        # Forward BFS
-        current_node = start_queue.popleft()
-        start_explored.add(tuple(current_node.state))
-
-        if tuple(current_node.state) in end_explored:
-            # Reconstruct the path
-            path = reconstruct_bidirectional_path(current_node, end_node)
-            return path, len(start_explored) + len(end_explored)
+    iteration = 0
+    while not start_frontier.empty() and not goal_frontier.empty() and iteration < max_iterations:
+        # Explore from the start state
+        start_current_node = start_frontier.get()
+        start_explored.add(start_current_node)
 
         for move in range(len(MOVES)):
-            child_state = Cube.move_state(current_node.state, move)
+            child_state = Cube.move_state(start_current_node.state, move)
 
-            if tuple(child_state.flatten()) not in start_explored:
+            if tuple(child_state) not in start_explored:
                 child_node = Node(
                     state=child_state,
-                    g_cost=current_node.g_cost + 1,
+                    g_cost=start_current_node.g_cost + 1,
                     h_cost=heuristic(cube, child_state),
-                    parent=current_node,
+                    parent=start_current_node,
                     action=move
                 )
-                start_queue.append(child_node)
+                start_frontier.put(child_node)
 
-        # Backward BFS
-        current_node = end_queue.popleft()
-        end_explored.add(tuple(current_node.state))
+                # Check for intersection with the goal state
+                if any(np.array_equal(node.state, child_node.state) for node in goal_explored):
+                    goal_node = next(node for node in goal_explored if np.array_equal(node.state, child_node.state))
+                    path_start = construct_path(child_node)
+                    path_goal = construct_path(goal_node, reverse=True)
+                    path_goal.pop()  # Remove the duplicate node in the middle
+                    path_goal.reverse()
+                    return path_start + path_goal, iteration
 
-        if tuple(current_node.state) in start_explored:
-            # Reconstruct the path
-            path = reconstruct_bidirectional_path(current_node, end_node)
-            return path, len(start_explored) + len(end_explored)
+        # Explore from the goal state
+        goal_current_node = goal_frontier.get()
+        goal_explored.add(goal_current_node)
 
         for move in range(len(MOVES)):
-            child_state = Cube.move_state(current_node.state, move)
+            child_state = Cube.move_state(goal_current_node.state, move)
 
-            if tuple(child_state.flatten()) not in end_explored:
+            if tuple(child_state) not in goal_explored:
                 child_node = Node(
                     state=child_state,
-                    g_cost=current_node.g_cost + 1,
-                    h_cost=0,
-                    parent=current_node,
+                    g_cost=goal_current_node.g_cost + 1,
+                    h_cost=heuristic(cube, child_state),
+                    parent=goal_current_node,
                     action=move
                 )
-                end_queue.append(child_node)
+                goal_frontier.put(child_node)
 
-    return [], len(start_explored) + len(end_explored)
+        iteration += 1
 
-def reconstruct_bidirectional_path(node1: Node, node2: Node) -> List[int]:
-    path1 = []
-    while node1 is not None:
-        if node1.action is not None:
-            path1.append(node1.action)
-        node1 = node1.parent
+    return [], iteration
 
-    path2 = []
-    while node2 is not None:
-        if node2.action is not None:
-            path2.append(node2.action)
-        node2 = node2.parent
-
-    path2.reverse()
-    return path1 + path2[1:]
+def construct_path(node, reverse=False):
+    path = []
+    while node is not None:
+        path.append(node.action)
+        node = node.parent
+    if reverse:
+        path.reverse()
+    return path
