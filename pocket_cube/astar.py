@@ -55,7 +55,7 @@ def astar(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
                 path.append(current_node.action)
                 current_node = current_node.parent
             path.reverse()
-            return path, iteration
+            return path, len(explored), iteration
 
         explored.add(tuple(current_node.state))
 
@@ -74,4 +74,4 @@ def astar(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
 
         iteration += 1
 
-    return [], iteration
+    return [], len(explored), iteration
