@@ -1,13 +1,38 @@
-from typing import List, Tuple
 from collections import deque
-from .cube import Cube
-from .astar import Node
-from .constants import MOVES
-from .moves import Move
+from typing import List, Tuple
 import numpy as np
+from .cube import Cube, MOVES  # Adjust the import statement based on your project structure
+
+def heuristic(cube: Cube, state: np.ndarray) -> int:
+    goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
+    state = state.reshape((6, 4))
+
+    total_distance = 0
+
+    for face in range(6):
+        for sticker in range(4):
+            current_position = np.where(state == goal_state[face, sticker])
+            goal_position = np.where(goal_state == goal_state[face, sticker])
+
+            # Extract indices from tuples
+            current_position = np.array(current_position).T[0]
+            goal_position = np.array(goal_position).T[0]
+
+            distance = np.sum(np.abs(current_position - goal_position))
+            total_distance += distance
+
+    return total_distance
+
+class Node:
+    def __init__(self, state: np.ndarray, g_cost: int = 0, h_cost: int = 0, parent=None, action=None):
+        self.state = state
+        self.g_cost = g_cost
+        self.h_cost = h_cost
+        self.parent = parent
+        self.action = action
 
 def bidirectional_bfs(cube: Cube) -> Tuple[List[int], int]:
-    start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=0)
+    start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=heuristic(cube, cube.clone_state()))
     end_node = Node(state=cube.goal_state, g_cost=0, h_cost=0)
 
     start_queue = deque([start_node])
@@ -21,7 +46,7 @@ def bidirectional_bfs(cube: Cube) -> Tuple[List[int], int]:
         current_node = start_queue.popleft()
         start_explored.add(tuple(current_node.state))
 
-        if np.array_equal(current_node.state, end_node.state):
+        if tuple(current_node.state) in end_explored:
             # Reconstruct the path
             path = reconstruct_bidirectional_path(current_node, end_node)
             return path, len(start_explored) + len(end_explored)
@@ -29,11 +54,11 @@ def bidirectional_bfs(cube: Cube) -> Tuple[List[int], int]:
         for move in range(len(MOVES)):
             child_state = Cube.move_state(current_node.state, move)
 
-            if tuple(child_state) not in start_explored:
+            if tuple(child_state.flatten()) not in start_explored:
                 child_node = Node(
                     state=child_state,
                     g_cost=current_node.g_cost + 1,
-                    h_cost=0,  # Since we're using BFS, the heuristic is always 0
+                    h_cost=heuristic(cube, child_state),
                     parent=current_node,
                     action=move
                 )
@@ -51,7 +76,7 @@ def bidirectional_bfs(cube: Cube) -> Tuple[List[int], int]:
         for move in range(len(MOVES)):
             child_state = Cube.move_state(current_node.state, move)
 
-            if tuple(child_state) not in end_explored:
+            if tuple(child_state.flatten()) not in end_explored:
                 child_node = Node(
                     state=child_state,
                     g_cost=current_node.g_cost + 1,
