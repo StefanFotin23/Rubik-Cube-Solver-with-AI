@@ -5,8 +5,8 @@ from .constants import MOVES
 from typing import List, Tuple
 
 # Define a heuristic function
-def heuristic(cube: Cube, state: np.ndarray) -> int:
-    goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
+def heuristic(goal_state: np.ndarray, state: np.ndarray) -> int:
+    goal_state = goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
     state = state.reshape((6, 4))
 
     total_distance = 0
@@ -37,8 +37,9 @@ class Node:
         return (self.g_cost + self.h_cost) < (other.g_cost + other.h_cost)
 
 def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
-    start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=heuristic(cube, cube.clone_state()))
-    goal_node = Node(state=cube.goal_state, g_cost=0, h_cost=heuristic(cube, cube.goal_state))
+    init_state = cube.state
+    start_node = Node(state=init_state, g_cost=0, h_cost=heuristic(cube.goal_state, init_state))
+    goal_node = Node(state=cube.goal_state, g_cost=0, h_cost=heuristic(init_state, cube.goal_state))
 
     frontier_start = queue.PriorityQueue()
     frontier_goal = queue.PriorityQueue()
@@ -55,50 +56,41 @@ def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[i
 
         for state, node in explored_goal.items():
             if np.array_equal(current_node_start.state, state):
-                print("explored_start")
-                print(explored_start)
-                print("explored_goal")
-                print(explored_goal)
-
                 # Reconstruct the path
                 path_start = reconstruct_path(current_node_start)
                 path_goal = reconstruct_path(node)
                 path_goal.reverse()
-                return path_start + path_goal, iteration
+                return path_start + path_goal, len(explored_start) +  len(explored_goal), iteration
 
         explored_start[tuple(current_node_start.state)] = current_node_start
-        expand_and_enqueue(frontier_start, explored_start, current_node_start, cube)
+        expand_and_enqueue(frontier_start, explored_start, current_node_start, cube.goal_state)
 
         # Backward search
         current_node_goal = frontier_goal.get()
 
         for state, node in explored_start.items():
             if np.array_equal(current_node_goal.state, state):
-                print("explored_start")
-                print(explored_start)
-                print("explored_goal")
-                print(explored_goal)
-
                 # Reconstruct the path
                 path_start = reconstruct_path(node)
                 path_goal = reconstruct_path(current_node_goal)
                 path_goal.reverse()
-                return path_start + path_goal, iteration
+                return path_start + path_goal, len(explored_start) +  len(explored_goal), iteration
 
         explored_goal[tuple(current_node_goal.state)] = current_node_goal
-        expand_and_enqueue(frontier_goal, explored_goal, current_node_goal, cube)
+        expand_and_enqueue(frontier_goal, explored_goal, current_node_goal, init_state)
 
         iteration += 1
 
-    return [], iteration
+    return [], len(explored_start) +  len(explored_goal), iteration
 
-def expand_and_enqueue(frontier, explored, current_node, cube):
+# 
+def expand_and_enqueue(frontier, explored, current_node, goal_state):
     for move in range(len(MOVES)):
         child_state = Cube.move_state(current_node.state, move)
         child_node = Node(
             state=child_state,
             g_cost=current_node.g_cost + 1,
-            h_cost=heuristic(cube, child_state),
+            h_cost=heuristic(goal_state, child_state),
             parent=current_node,
             action=move
         )
