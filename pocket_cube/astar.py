@@ -4,8 +4,6 @@ from .cube import Cube
 from .constants import MOVES
 from typing import List, Tuple
 
-#return np.sum(state != cube.goal_state)
-
 # Define a heuristic function
 def heuristic(cube: Cube, state: np.ndarray) -> int:
     goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
