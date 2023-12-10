@@ -4,6 +4,7 @@ from .cube import Cube
 from .constants import MOVES
 from typing import List, Tuple
 
+# Define a heuristic function
 def heuristic(cube: Cube, state: np.ndarray) -> int:
     goal_state = cube.goal_state.reshape((6, 4))  # Reshape to a 2D array for easier indexing
     state = state.reshape((6, 4))
@@ -34,73 +35,68 @@ class Node:
 
     def __lt__(self, other):
         return (self.g_cost + self.h_cost) < (other.g_cost + other.h_cost)
-    
+
 def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[int], int]:
     start_node = Node(state=cube.clone_state(), g_cost=0, h_cost=heuristic(cube, cube.clone_state()))
     goal_node = Node(state=cube.goal_state, g_cost=0, h_cost=heuristic(cube, cube.goal_state))
 
-    start_frontier = queue.Queue()
-    goal_frontier = queue.Queue()
-    start_frontier.put(start_node)
-    goal_frontier.put(goal_node)
+    frontier_start = queue.PriorityQueue()
+    frontier_goal = queue.PriorityQueue()
+    frontier_start.put(start_node)
+    frontier_goal.put(goal_node)
 
-    start_explored = set()
-    goal_explored = set()
+    explored_start = {tuple(start_node.state): start_node}
+    explored_goal = {tuple(goal_node.state): goal_node}
 
     iteration = 0
-    while not start_frontier.empty() and not goal_frontier.empty() and iteration < max_iterations:
-        # Explore from the start state
-        start_current_node = start_frontier.get()
-        start_explored.add(start_current_node)
+    while not frontier_start.empty() and not frontier_goal.empty() and iteration < max_iterations:
+        # Forward search
+        current_node_start = frontier_start.get()
+        if tuple(current_node_start.state) in explored_goal:
+            # Reconstruct the path
+            path_start = reconstruct_path(current_node_start)
+            path_goal = reconstruct_path(explored_goal[tuple(current_node_start.state)])
+            path_goal.reverse()
+            return path_start + path_goal, iteration
 
-        for move in range(len(MOVES)):
-            child_state = Cube.move_state(start_current_node.state, move)
+        explored_start[tuple(current_node_start.state)] = current_node_start
+        expand_and_enqueue(frontier_start, explored_start, current_node_start, cube)
 
-            if tuple(child_state) not in start_explored:
-                child_node = Node(
-                    state=child_state,
-                    g_cost=start_current_node.g_cost + 1,
-                    h_cost=heuristic(cube, child_state),
-                    parent=start_current_node,
-                    action=move
-                )
-                start_frontier.put(child_node)
+        # Backward search
+        current_node_goal = frontier_goal.get()
+        if tuple(current_node_goal.state) in explored_start:
+            # Reconstruct the path
+            path_start = reconstruct_path(explored_start[tuple(current_node_goal.state)])
+            path_goal = reconstruct_path(current_node_goal)
+            path_goal.reverse()
+            return path_start + path_goal, iteration
 
-                # Check for intersection with the goal state
-                if any(np.array_equal(node.state, child_node.state) for node in goal_explored):
-                    goal_node = next(node for node in goal_explored if np.array_equal(node.state, child_node.state))
-                    path_start = construct_path(child_node)
-                    path_goal = construct_path(goal_node, reverse=True)
-                    path_goal.pop()  # Remove the duplicate node in the middle
-                    path_goal.reverse()
-                    return path_start + path_goal, iteration
-
-        # Explore from the goal state
-        goal_current_node = goal_frontier.get()
-        goal_explored.add(goal_current_node)
-
-        for move in range(len(MOVES)):
-            child_state = Cube.move_state(goal_current_node.state, move)
-
-            if tuple(child_state) not in goal_explored:
-                child_node = Node(
-                    state=child_state,
-                    g_cost=goal_current_node.g_cost + 1,
-                    h_cost=heuristic(cube, child_state),
-                    parent=goal_current_node,
-                    action=move
-                )
-                goal_frontier.put(child_node)
+        explored_goal[tuple(current_node_goal.state)] = current_node_goal
+        expand_and_enqueue(frontier_goal, explored_goal, current_node_goal, cube)
 
         iteration += 1
 
     return [], iteration
 
-def construct_path(node, reverse=False):
+def expand_and_enqueue(frontier, explored, current_node, cube):
+    for move in range(len(MOVES)):
+        child_state = Cube.move_state(current_node.state, move)
+        child_node = Node(
+            state=child_state,
+            g_cost=current_node.g_cost + 1,
+            h_cost=heuristic(cube, child_state),
+            parent=current_node,
+            action=move
+        )
+
+        if tuple(child_state) not in explored:
+            explored[tuple(child_state)] = child_node
+            frontier.put(child_node)
+
+def reconstruct_path(node):
     path = []
-    while node is not None:
+    while node.parent is not None:
         path.append(node.action)
         node = node.parent
-    if reverse:
-        path.reverse()
+    path.reverse()
     return path
