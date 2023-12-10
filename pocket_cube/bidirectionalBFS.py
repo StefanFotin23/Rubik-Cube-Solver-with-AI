@@ -55,10 +55,10 @@ def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[i
 
         for state, node in explored_goal.items():
             if np.array_equal(current_node_start.state, state):
-                print("current_node_start.state")
-                print(current_node_start.state)
-                print("state")
-                print(state)
+                print("explored_start")
+                print(explored_start)
+                print("explored_goal")
+                print(explored_goal)
 
                 # Reconstruct the path
                 path_start = reconstruct_path(current_node_start)
@@ -74,10 +74,10 @@ def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[i
 
         for state, node in explored_start.items():
             if np.array_equal(current_node_goal.state, state):
-                print("current_node_goal.state")
-                print(current_node_goal.state)
-                print("state")
-                print(state)
+                print("explored_start")
+                print(explored_start)
+                print("explored_goal")
+                print(explored_goal)
 
                 # Reconstruct the path
                 path_start = reconstruct_path(node)
