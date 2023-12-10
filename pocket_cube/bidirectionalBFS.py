@@ -52,24 +52,38 @@ def bidirectional_bfs(cube: Cube, max_iterations: int = 9999999) -> Tuple[List[i
     while not frontier_start.empty() and not frontier_goal.empty() and iteration < max_iterations:
         # Forward search
         current_node_start = frontier_start.get()
-        if tuple(current_node_start.state) in explored_goal:
-            # Reconstruct the path
-            path_start = reconstruct_path(current_node_start)
-            path_goal = reconstruct_path(explored_goal[tuple(current_node_start.state)])
-            path_goal.reverse()
-            return path_start + path_goal, iteration
+
+        for state, node in explored_goal.items():
+            if np.array_equal(current_node_start.state, state):
+                print("current_node_start.state")
+                print(current_node_start.state)
+                print("state")
+                print(state)
+
+                # Reconstruct the path
+                path_start = reconstruct_path(current_node_start)
+                path_goal = reconstruct_path(node)
+                path_goal.reverse()
+                return path_start + path_goal, iteration
 
         explored_start[tuple(current_node_start.state)] = current_node_start
         expand_and_enqueue(frontier_start, explored_start, current_node_start, cube)
 
         # Backward search
         current_node_goal = frontier_goal.get()
-        if tuple(current_node_goal.state) in explored_start:
-            # Reconstruct the path
-            path_start = reconstruct_path(explored_start[tuple(current_node_goal.state)])
-            path_goal = reconstruct_path(current_node_goal)
-            path_goal.reverse()
-            return path_start + path_goal, iteration
+
+        for state, node in explored_start.items():
+            if np.array_equal(current_node_goal.state, state):
+                print("current_node_goal.state")
+                print(current_node_goal.state)
+                print("state")
+                print(state)
+
+                # Reconstruct the path
+                path_start = reconstruct_path(node)
+                path_goal = reconstruct_path(current_node_goal)
+                path_goal.reverse()
+                return path_start + path_goal, iteration
 
         explored_goal[tuple(current_node_goal.state)] = current_node_goal
         expand_and_enqueue(frontier_goal, explored_goal, current_node_goal, cube)
